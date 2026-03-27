@@ -93,6 +93,21 @@ body { font-family: 'Segoe UI', 'Hiragino Sans', 'Meiryo', sans-serif; backgroun
 
 .app-wrapper { display: block; }
 
+/* Page Tabs */
+.page-tab { padding: 12px 24px; background: none; border: none; border-bottom: 3px solid transparent; font-size: 14px; font-weight: 600; color: #6b7280; cursor: pointer; transition: all 0.2s; }
+.page-tab.active { color: #4f46e5; border-bottom-color: #4f46e5; }
+.page-tab:hover { color: #4f46e5; }
+
+/* Table */
+#dbTable tbody tr { border-bottom: 1px solid #f3f4f6; transition: background 0.15s; }
+#dbTable tbody tr:hover { background: #f9fafb; }
+#dbTable td { padding: 10px 12px; }
+.btn-sm { padding: 4px 10px; border: none; border-radius: 4px; font-size: 12px; cursor: pointer; font-weight: 500; }
+.btn-sm-view { background: #eef2ff; color: #4f46e5; }
+.btn-sm-view:hover { background: #e0e7ff; }
+.btn-sm-del { background: #fef2f2; color: #dc2626; }
+.btn-sm-del:hover { background: #fee2e2; }
+
 .divider { height: 1px; background: #e5e7eb; margin: 16px 0; }
 </style>
 </head>
@@ -107,7 +122,15 @@ body { font-family: 'Segoe UI', 'Hiragino Sans', 'Meiryo', sans-serif; backgroun
     </div>
   </div>
 
-  <div class="container">
+  <!-- Page Navigation -->
+  <div style="background:#fff; border-bottom:1px solid #e5e7eb; padding:0 32px;">
+    <div style="max-width:1400px; margin:0 auto; display:flex; gap:0;">
+      <button class="page-tab active" onclick="switchPage('convert')" id="tabConvert">新規変換</button>
+      <button class="page-tab" onclick="switchPage('list')" id="tabList">求職者一覧</button>
+    </div>
+  </div>
+
+  <div class="container" id="pageConvert">
     <!-- API Key -->
     <div class="api-key-section">
       <label>Claude API Key:</label>
@@ -302,6 +325,7 @@ body { font-family: 'Segoe UI', 'Hiragino Sans', 'Meiryo', sans-serif; backgroun
             </div>
 
             <div class="btn-group">
+              <button class="btn-action btn-copy" onclick="saveToDb()">求職者DBに登録</button>
               <button class="btn-action btn-copy" onclick="copyAll()">全てコピー</button>
               <button class="btn-action btn-copy" onclick="copyRecommendation()">推薦文のみコピー</button>
               <button class="btn-action btn-reset" onclick="resetAll()">リセット</button>
@@ -312,6 +336,49 @@ body { font-family: 'Segoe UI', 'Hiragino Sans', 'Meiryo', sans-serif; backgroun
     </div>
   </div>
 </div>
+
+  <!-- 求職者一覧ページ -->
+  <div class="container" id="pageList" style="display:none;">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+      <h2 style="font-size:18px; font-weight:600;">登録済み求職者</h2>
+      <div style="display:flex; gap:8px; align-items:center;">
+        <input type="text" id="searchInput" placeholder="名前・職種で検索..." oninput="renderList()" style="padding:8px 12px; border:1px solid #d1d5db; border-radius:6px; font-size:13px; width:250px;" />
+        <button class="btn-action btn-reset" onclick="exportCsv()">CSV出力</button>
+      </div>
+    </div>
+    <div class="panel">
+      <div style="overflow-x:auto;">
+        <table id="dbTable" style="width:100%; border-collapse:collapse; font-size:13px;">
+          <thead>
+            <tr style="background:#f9fafb; border-bottom:2px solid #e5e7eb;">
+              <th style="padding:10px 12px; text-align:left; font-weight:600; color:#6b7280; white-space:nowrap;">氏名</th>
+              <th style="padding:10px 12px; text-align:left; font-weight:600; color:#6b7280; white-space:nowrap;">年齢</th>
+              <th style="padding:10px 12px; text-align:left; font-weight:600; color:#6b7280; white-space:nowrap;">経験職種</th>
+              <th style="padding:10px 12px; text-align:left; font-weight:600; color:#6b7280; white-space:nowrap;">希望年収</th>
+              <th style="padding:10px 12px; text-align:left; font-weight:600; color:#6b7280; white-space:nowrap;">登録日</th>
+              <th style="padding:10px 12px; text-align:center; font-weight:600; color:#6b7280; white-space:nowrap;">操作</th>
+            </tr>
+          </thead>
+          <tbody id="dbTableBody"></tbody>
+        </table>
+      </div>
+      <div id="emptyListState" style="text-align:center; padding:60px 20px; color:#9ca3af;">
+        <div style="font-size:48px; margin-bottom:12px;">📂</div>
+        <p>登録された求職者はまだいません</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- 詳細モーダル -->
+  <div id="detailModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:9999; overflow-y:auto; padding:40px 20px;">
+    <div style="max-width:700px; margin:0 auto; background:#fff; border-radius:12px; box-shadow:0 20px 60px rgba(0,0,0,0.3); overflow:hidden;">
+      <div style="padding:16px 24px; background:#f9fafb; border-bottom:1px solid #e5e7eb; display:flex; justify-content:space-between; align-items:center;">
+        <h3 style="font-size:16px; font-weight:600;" id="modalTitle">求職者詳細</h3>
+        <button onclick="closeModal()" style="background:none; border:none; font-size:20px; cursor:pointer; color:#6b7280;">✕</button>
+      </div>
+      <div id="modalBody" style="padding:24px;"></div>
+    </div>
+  </div>
 
 <div class="toast" id="toast"></div>
 
@@ -664,6 +731,168 @@ function resetAll() {
   document.querySelectorAll('.output-section input, .output-section textarea').forEach(el => el.value = '');
   document.getElementById('outputSection').classList.remove('active');
   document.getElementById('emptyState').style.display = 'block';
+}
+
+// ===== Page Navigation =====
+function switchPage(page) {
+  document.getElementById('pageConvert').style.display = page === 'convert' ? 'block' : 'none';
+  document.getElementById('pageList').style.display = page === 'list' ? 'block' : 'none';
+  document.getElementById('tabConvert').classList.toggle('active', page === 'convert');
+  document.getElementById('tabList').classList.toggle('active', page === 'list');
+  if (page === 'list') renderList();
+}
+
+// ===== DB (localStorage) =====
+function getDb() {
+  return JSON.parse(localStorage.getItem('kyushokusha_db') || '[]');
+}
+
+function setDb(data) {
+  localStorage.setItem('kyushokusha_db', JSON.stringify(data));
+}
+
+function saveToDb() {
+  const fields = ['name','nameReading','age','gender','employmentStatus','desiredStartDate',
+    'education','school','companyCount','jobTypes','industries','management','qualifications',
+    'currentSalary','desiredSalary','resignDate','desiredLocation'];
+
+  const record = { id: Date.now().toString(), registeredAt: new Date().toISOString() };
+  fields.forEach(key => {
+    const el = document.getElementById('out_' + key);
+    record[key] = el ? el.value : '';
+  });
+  record.recommendation = document.getElementById('out_recommendation').value;
+  record.careerSummary = document.getElementById('out_careerSummary').value;
+
+  if (!record.name) { showToast('氏名が入力されていません'); return; }
+
+  const db = getDb();
+  db.unshift(record);
+  setDb(db);
+  showToast(record.name + ' さんを登録しました');
+}
+
+function renderList() {
+  const db = getDb();
+  const query = (document.getElementById('searchInput').value || '').trim().toLowerCase();
+  const filtered = query ? db.filter(r =>
+    (r.name || '').toLowerCase().includes(query) ||
+    (r.jobTypes || '').toLowerCase().includes(query) ||
+    (r.nameReading || '').toLowerCase().includes(query)
+  ) : db;
+
+  const tbody = document.getElementById('dbTableBody');
+  const empty = document.getElementById('emptyListState');
+  const table = document.getElementById('dbTable');
+
+  if (filtered.length === 0) {
+    tbody.innerHTML = '';
+    empty.style.display = 'block';
+    table.style.display = 'none';
+    return;
+  }
+
+  empty.style.display = 'none';
+  table.style.display = 'table';
+
+  tbody.innerHTML = filtered.map(r => {
+    const date = new Date(r.registeredAt).toLocaleDateString('ja-JP');
+    return `<tr>
+      <td style="font-weight:600;">${esc(r.name)}</td>
+      <td>${esc(r.age)}</td>
+      <td style="max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${esc(r.jobTypes)}</td>
+      <td>${esc(r.desiredSalary)}</td>
+      <td>${date}</td>
+      <td style="text-align:center; white-space:nowrap;">
+        <button class="btn-sm btn-sm-view" onclick="viewDetail('${r.id}')">詳細</button>
+        <button class="btn-sm btn-sm-del" onclick="deleteRecord('${r.id}')">削除</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function esc(str) {
+  const d = document.createElement('div');
+  d.textContent = str || '';
+  return d.innerHTML;
+}
+
+function viewDetail(id) {
+  const db = getDb();
+  const r = db.find(x => x.id === id);
+  if (!r) return;
+
+  document.getElementById('modalTitle').textContent = (r.name || '不明') + ' さんの詳細';
+
+  const sections = [
+    { title: '基本情報', fields: [
+      ['氏名', r.name], ['フリガナ', r.nameReading], ['年齢', r.age],
+      ['性別', r.gender], ['就業状況', r.employmentStatus], ['入社希望時期', r.desiredStartDate]
+    ]},
+    { title: '経歴', fields: [
+      ['最終学歴', r.education], ['卒業学校名', r.school], ['経験社数', r.companyCount],
+      ['経験職種', r.jobTypes], ['経験業種', r.industries], ['マネジメント経験', r.management],
+      ['保有資格', r.qualifications]
+    ]},
+    { title: '年収・希望条件', fields: [
+      ['現在の年収', r.currentSalary], ['希望年収', r.desiredSalary],
+      ['離職日', r.resignDate], ['希望勤務地', r.desiredLocation]
+    ]}
+  ];
+
+  let html = sections.map(s => {
+    const rows = s.fields.map(([label, val]) =>
+      `<div style="display:flex; padding:4px 0; border-bottom:1px solid #f3f4f6;"><span style="width:140px; min-width:140px; font-size:12px; font-weight:600; color:#6b7280;">${label}</span><span style="font-size:13px;">${esc(val)}</span></div>`
+    ).join('');
+    return `<div style="margin-bottom:16px;"><div style="font-size:13px; font-weight:700; color:#4f46e5; border-bottom:2px solid #4f46e5; padding-bottom:4px; margin-bottom:8px;">${s.title}</div>${rows}</div>`;
+  }).join('');
+
+  if (r.recommendation) {
+    html += `<div style="margin-bottom:16px;"><div style="font-size:13px; font-weight:700; color:#4f46e5; border-bottom:2px solid #4f46e5; padding-bottom:4px; margin-bottom:8px;">推薦文</div><div style="font-size:13px; line-height:1.8; white-space:pre-wrap; background:#f9fafb; padding:12px; border-radius:6px;">${esc(r.recommendation)}</div></div>`;
+  }
+
+  if (r.careerSummary) {
+    html += `<div style="margin-bottom:16px;"><div style="font-size:13px; font-weight:700; color:#4f46e5; border-bottom:2px solid #4f46e5; padding-bottom:4px; margin-bottom:8px;">職歴サマリー</div><div style="font-size:13px; line-height:1.8; white-space:pre-wrap; background:#f9fafb; padding:12px; border-radius:6px;">${esc(r.careerSummary)}</div></div>`;
+  }
+
+  document.getElementById('modalBody').innerHTML = html;
+  document.getElementById('detailModal').style.display = 'block';
+}
+
+function closeModal() {
+  document.getElementById('detailModal').style.display = 'none';
+}
+
+function deleteRecord(id) {
+  if (!confirm('この求職者を削除しますか？')) return;
+  const db = getDb().filter(x => x.id !== id);
+  setDb(db);
+  renderList();
+  showToast('削除しました');
+}
+
+function exportCsv() {
+  const db = getDb();
+  if (!db.length) { showToast('データがありません'); return; }
+
+  const headers = ['氏名','フリガナ','年齢','性別','就業状況','入社希望時期','最終学歴','卒業学校名','経験社数','経験職種','経験業種','マネジメント経験','保有資格','現在の年収','希望年収','離職日','希望勤務地','登録日'];
+  const keys = ['name','nameReading','age','gender','employmentStatus','desiredStartDate','education','school','companyCount','jobTypes','industries','management','qualifications','currentSalary','desiredSalary','resignDate','desiredLocation','registeredAt'];
+
+  const bom = '\uFEFF';
+  let csv = bom + headers.join(',') + '\n';
+  db.forEach(r => {
+    csv += keys.map(k => {
+      let v = (r[k] || '').replace(/"/g, '""');
+      if (k === 'registeredAt') v = new Date(v).toLocaleDateString('ja-JP');
+      return '"' + v + '"';
+    }).join(',') + '\n';
+  });
+
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = '求職者一覧_' + new Date().toISOString().slice(0,10) + '.csv';
+  a.click();
 }
 
 function showToast(msg) {
