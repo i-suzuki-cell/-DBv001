@@ -9,22 +9,6 @@
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body { font-family: 'Segoe UI', 'Hiragino Sans', 'Meiryo', sans-serif; background: #f0f2f5; color: #333; min-height: 100vh; }
 
-/* ===== Login ===== */
-.login-overlay { position: fixed; inset: 0; background: linear-gradient(135deg, #6366f1 0%, #4f46e5 50%, #3730a3 100%); display: flex; align-items: center; justify-content: center; z-index: 9999; }
-.login-overlay.hidden { display: none; }
-.login-card { background: #fff; border-radius: 16px; padding: 48px 40px; width: 400px; max-width: 90vw; box-shadow: 0 20px 60px rgba(0,0,0,0.3); text-align: center; }
-.login-card h2 { font-size: 22px; font-weight: 700; color: #4f46e5; margin-bottom: 4px; }
-.login-card .subtitle { font-size: 13px; color: #6b7280; margin-bottom: 32px; }
-.login-card .form-group { text-align: left; margin-bottom: 16px; }
-.login-card label { display: block; font-size: 13px; font-weight: 600; color: #6b7280; margin-bottom: 6px; }
-.login-card input { width: 100%; padding: 12px 14px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 15px; transition: border-color 0.2s; }
-.login-card input:focus { outline: none; border-color: #4f46e5; box-shadow: 0 0 0 3px rgba(79,70,229,0.15); }
-.login-card .btn-login { width: 100%; padding: 14px; background: linear-gradient(135deg, #6366f1, #4f46e5); color: #fff; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; margin-top: 8px; transition: all 0.2s; }
-.login-card .btn-login:hover { transform: translateY(-1px); box-shadow: 0 4px 16px rgba(79,70,229,0.4); }
-.login-card .login-error { color: #dc2626; font-size: 13px; margin-top: 12px; min-height: 20px; }
-.login-card .credentials-hint { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 12px; margin-top: 20px; text-align: left; font-size: 12px; color: #6b7280; line-height: 1.6; }
-.login-card .credentials-hint strong { color: #333; }
-
 /* ===== Header ===== */
 .header { background: linear-gradient(135deg, #6366f1, #4f46e5); color: #fff; padding: 20px 32px; box-shadow: 0 2px 8px rgba(0,0,0,0.15); display: flex; justify-content: space-between; align-items: center; }
 .header-left h1 { font-size: 22px; font-weight: 600; }
@@ -107,42 +91,20 @@ body { font-family: 'Segoe UI', 'Hiragino Sans', 'Meiryo', sans-serif; backgroun
 .toast { position: fixed; bottom: 24px; right: 24px; background: #1f2937; color: #fff; padding: 12px 24px; border-radius: 8px; font-size: 14px; opacity: 0; transition: opacity 0.3s; pointer-events: none; z-index: 1000; }
 .toast.show { opacity: 1; }
 
-.app-wrapper { display: none; }
-.app-wrapper.visible { display: block; }
+.app-wrapper { display: block; }
 
 .divider { height: 1px; background: #e5e7eb; margin: 16px 0; }
 </style>
 </head>
 <body>
 
-<!-- Login -->
-<div class="login-overlay" id="loginOverlay">
-  <div class="login-card">
-    <h2>求職者DB</h2>
-    <p class="subtitle">履歴書・職務経歴書から求職者情報と推薦文を自動生成</p>
-    <form onsubmit="handleLogin(event)">
-      <div class="form-group">
-        <label for="loginUser">ユーザーID</label>
-        <input type="text" id="loginUser" placeholder="ユーザーIDを入力" autocomplete="username" required />
-      </div>
-      <div class="form-group">
-        <label for="loginPass">パスワード</label>
-        <input type="password" id="loginPass" placeholder="パスワードを入力" autocomplete="current-password" required />
-      </div>
-      <button type="submit" class="btn-login">ログイン</button>
-    </form>
-    <div class="login-error" id="loginError"></div>
-  </div>
-</div>
-
 <!-- Main App -->
-<div class="app-wrapper" id="appWrapper">
+<div class="app-wrapper visible" id="appWrapper">
   <div class="header">
     <div class="header-left">
       <h1>求職者DB</h1>
       <p>履歴書・職務経歴書をアップロードして求職者情報・推薦文を自動生成</p>
     </div>
-    <button class="btn-logout" onclick="handleLogout()">ログアウト</button>
   </div>
 
   <div class="container">
@@ -348,40 +310,6 @@ body { font-family: 'Segoe UI', 'Hiragino Sans', 'Meiryo', sans-serif; backgroun
 <div class="toast" id="toast"></div>
 
 <script>
-// ===== Login =====
-const USERS = { 'admin': 'password123', 'staff01': 'staff2024' };
-
-function handleLogin(e) {
-  e.preventDefault();
-  const user = document.getElementById('loginUser').value.trim();
-  const pass = document.getElementById('loginPass').value;
-  if (USERS[user] && USERS[user] === pass) {
-    sessionStorage.setItem('loggedInUser', user);
-    showApp();
-    document.getElementById('loginError').textContent = '';
-  } else {
-    document.getElementById('loginError').textContent = 'ユーザーIDまたはパスワードが正しくありません';
-  }
-}
-
-function handleLogout() {
-  sessionStorage.removeItem('loggedInUser');
-  showLogin();
-}
-
-function showApp() {
-  document.getElementById('loginOverlay').classList.add('hidden');
-  document.getElementById('appWrapper').classList.add('visible');
-}
-
-function showLogin() {
-  document.getElementById('loginOverlay').classList.remove('hidden');
-  document.getElementById('appWrapper').classList.remove('visible');
-  document.getElementById('loginUser').value = '';
-  document.getElementById('loginPass').value = '';
-  document.getElementById('loginError').textContent = '';
-}
-
 // ===== PDF.js =====
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
@@ -400,7 +328,6 @@ function saveApiKey() {
 
 // Init
 window.addEventListener('DOMContentLoaded', () => {
-  if (sessionStorage.getItem('loggedInUser')) showApp();
   const saved = localStorage.getItem('claude_api_key');
   if (saved) {
     document.getElementById('apiKey').value = saved;
