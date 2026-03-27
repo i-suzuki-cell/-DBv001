@@ -1,0 +1,717 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>求職者DB - 履歴書・職務経歴書変換ツール</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Segoe UI', 'Hiragino Sans', 'Meiryo', sans-serif; background: #f0f2f5; color: #333; min-height: 100vh; }
+
+/* ===== Login ===== */
+.login-overlay { position: fixed; inset: 0; background: linear-gradient(135deg, #6366f1 0%, #4f46e5 50%, #3730a3 100%); display: flex; align-items: center; justify-content: center; z-index: 9999; }
+.login-overlay.hidden { display: none; }
+.login-card { background: #fff; border-radius: 16px; padding: 48px 40px; width: 400px; max-width: 90vw; box-shadow: 0 20px 60px rgba(0,0,0,0.3); text-align: center; }
+.login-card h2 { font-size: 22px; font-weight: 700; color: #4f46e5; margin-bottom: 4px; }
+.login-card .subtitle { font-size: 13px; color: #6b7280; margin-bottom: 32px; }
+.login-card .form-group { text-align: left; margin-bottom: 16px; }
+.login-card label { display: block; font-size: 13px; font-weight: 600; color: #6b7280; margin-bottom: 6px; }
+.login-card input { width: 100%; padding: 12px 14px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 15px; transition: border-color 0.2s; }
+.login-card input:focus { outline: none; border-color: #4f46e5; box-shadow: 0 0 0 3px rgba(79,70,229,0.15); }
+.login-card .btn-login { width: 100%; padding: 14px; background: linear-gradient(135deg, #6366f1, #4f46e5); color: #fff; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; margin-top: 8px; transition: all 0.2s; }
+.login-card .btn-login:hover { transform: translateY(-1px); box-shadow: 0 4px 16px rgba(79,70,229,0.4); }
+.login-card .login-error { color: #dc2626; font-size: 13px; margin-top: 12px; min-height: 20px; }
+.login-card .credentials-hint { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 12px; margin-top: 20px; text-align: left; font-size: 12px; color: #6b7280; line-height: 1.6; }
+.login-card .credentials-hint strong { color: #333; }
+
+/* ===== Header ===== */
+.header { background: linear-gradient(135deg, #6366f1, #4f46e5); color: #fff; padding: 20px 32px; box-shadow: 0 2px 8px rgba(0,0,0,0.15); display: flex; justify-content: space-between; align-items: center; }
+.header-left h1 { font-size: 22px; font-weight: 600; }
+.header-left p { font-size: 13px; opacity: 0.85; margin-top: 4px; }
+.btn-logout { padding: 8px 20px; background: rgba(255,255,255,0.15); color: #fff; border: 1px solid rgba(255,255,255,0.3); border-radius: 6px; font-size: 13px; cursor: pointer; transition: all 0.2s; }
+.btn-logout:hover { background: rgba(255,255,255,0.25); }
+
+.container { max-width: 1400px; margin: 0 auto; padding: 24px; }
+
+/* API Key */
+.api-key-section { background: #fff; border-radius: 10px; padding: 16px 20px; margin-bottom: 20px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.api-key-section label { font-weight: 600; font-size: 14px; white-space: nowrap; }
+.api-key-section input { flex: 1; min-width: 300px; padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px; }
+.api-key-section .save-btn { padding: 8px 16px; background: #4f46e5; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; }
+.api-key-section .save-btn:hover { background: #4338ca; }
+.api-key-status { font-size: 12px; color: #6b7280; }
+
+/* Layout */
+.main-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+@media (max-width: 1000px) { .main-grid { grid-template-columns: 1fr; } }
+
+.panel { background: #fff; border-radius: 10px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); overflow: hidden; }
+.panel-header { padding: 14px 20px; background: #fafafa; border-bottom: 1px solid #e5e7eb; font-weight: 600; font-size: 15px; display: flex; align-items: center; gap: 8px; }
+.panel-body { padding: 20px; }
+
+/* Upload Areas */
+.upload-section { margin-bottom: 20px; }
+.upload-section h3 { font-size: 14px; font-weight: 600; color: #4f46e5; margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+.upload-section h3 .badge { font-size: 11px; background: #e0e7ff; color: #4338ca; padding: 2px 8px; border-radius: 10px; font-weight: 500; }
+
+.drop-zone { border: 2px dashed #d1d5db; border-radius: 10px; padding: 28px 16px; text-align: center; cursor: pointer; transition: all 0.2s; background: #fafbfc; }
+.drop-zone:hover, .drop-zone.dragover { border-color: #4f46e5; background: #eef2ff; }
+.drop-zone.has-file { border-color: #10b981; border-style: solid; background: #ecfdf5; }
+.drop-zone .icon { font-size: 32px; margin-bottom: 4px; }
+.drop-zone p { color: #6b7280; font-size: 13px; }
+.drop-zone .file-name { color: #4f46e5; font-weight: 600; margin-top: 6px; font-size: 13px; }
+.drop-zone input[type="file"] { display: none; }
+
+.pdf-preview { margin-top: 8px; font-size: 11px; color: #6b7280; max-height: 100px; overflow-y: auto; background: #f9fafb; padding: 8px; border-radius: 6px; white-space: pre-wrap; display: none; line-height: 1.5; }
+
+.text-tab { margin-top: 8px; }
+.text-tab textarea { width: 100%; height: 200px; border: 1px solid #d1d5db; border-radius: 8px; padding: 12px; font-size: 13px; line-height: 1.7; resize: vertical; font-family: inherit; }
+
+.input-toggle { display: flex; gap: 0; margin-bottom: 12px; border-radius: 6px; overflow: hidden; border: 1px solid #d1d5db; }
+.input-toggle button { flex: 1; padding: 8px; text-align: center; background: #f9fafb; border: none; cursor: pointer; font-size: 13px; font-weight: 500; transition: all 0.2s; }
+.input-toggle button.active { background: #4f46e5; color: #fff; }
+
+/* Convert Button */
+.btn-convert { width: 100%; padding: 14px; background: linear-gradient(135deg, #6366f1, #4f46e5); color: #fff; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; margin-top: 8px; transition: all 0.2s; }
+.btn-convert:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(79,70,229,0.4); }
+.btn-convert:disabled { background: #9ca3af; cursor: not-allowed; transform: none; box-shadow: none; }
+
+/* Progress */
+.progress-bar { display: none; margin-top: 12px; }
+.progress-bar.active { display: block; }
+.progress-track { height: 4px; background: #e5e7eb; border-radius: 2px; overflow: hidden; }
+.progress-fill { height: 100%; background: linear-gradient(90deg, #6366f1, #10b981); border-radius: 2px; transition: width 0.3s; }
+.progress-text { font-size: 12px; color: #6b7280; margin-top: 4px; text-align: center; }
+
+/* Output */
+.output-section { display: none; }
+.output-section.active { display: block; }
+
+.field-group { margin-bottom: 20px; }
+.field-group-title { font-size: 14px; font-weight: 700; color: #4f46e5; border-bottom: 2px solid #4f46e5; padding-bottom: 6px; margin-bottom: 12px; }
+
+.field-row { display: flex; align-items: flex-start; padding: 6px 0; border-bottom: 1px solid #f3f4f6; }
+.field-label { width: 160px; min-width: 160px; font-size: 12px; font-weight: 600; color: #6b7280; padding-top: 6px; }
+.field-value { flex: 1; }
+.field-value input, .field-value select { width: 100%; padding: 6px 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 13px; font-family: inherit; }
+.field-value textarea { width: 100%; border: 1px solid #d1d5db; border-radius: 6px; padding: 10px; font-size: 13px; line-height: 1.8; font-family: inherit; resize: vertical; min-height: 200px; }
+
+.btn-group { display: flex; gap: 8px; margin-top: 20px; }
+.btn-action { padding: 10px 24px; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+.btn-copy { background: #4f46e5; color: #fff; }
+.btn-copy:hover { background: #4338ca; }
+.btn-reset { background: #f3f4f6; color: #333; }
+.btn-reset:hover { background: #e5e7eb; }
+
+.toast { position: fixed; bottom: 24px; right: 24px; background: #1f2937; color: #fff; padding: 12px 24px; border-radius: 8px; font-size: 14px; opacity: 0; transition: opacity 0.3s; pointer-events: none; z-index: 1000; }
+.toast.show { opacity: 1; }
+
+.app-wrapper { display: none; }
+.app-wrapper.visible { display: block; }
+
+.divider { height: 1px; background: #e5e7eb; margin: 16px 0; }
+</style>
+</head>
+<body>
+
+<!-- Login -->
+<div class="login-overlay" id="loginOverlay">
+  <div class="login-card">
+    <h2>求職者DB</h2>
+    <p class="subtitle">履歴書・職務経歴書から求職者情報と推薦文を自動生成</p>
+    <form onsubmit="handleLogin(event)">
+      <div class="form-group">
+        <label for="loginUser">ユーザーID</label>
+        <input type="text" id="loginUser" placeholder="ユーザーIDを入力" autocomplete="username" required />
+      </div>
+      <div class="form-group">
+        <label for="loginPass">パスワード</label>
+        <input type="password" id="loginPass" placeholder="パスワードを入力" autocomplete="current-password" required />
+      </div>
+      <button type="submit" class="btn-login">ログイン</button>
+    </form>
+    <div class="login-error" id="loginError"></div>
+    <div class="credentials-hint">
+      <strong>テスト用アカウント:</strong><br>
+      ID: <strong>admin</strong> / PW: <strong>password123</strong><br>
+      ID: <strong>staff01</strong> / PW: <strong>staff2024</strong>
+    </div>
+  </div>
+</div>
+
+<!-- Main App -->
+<div class="app-wrapper" id="appWrapper">
+  <div class="header">
+    <div class="header-left">
+      <h1>求職者DB</h1>
+      <p>履歴書・職務経歴書をアップロードして求職者情報・推薦文を自動生成</p>
+    </div>
+    <button class="btn-logout" onclick="handleLogout()">ログアウト</button>
+  </div>
+
+  <div class="container">
+    <!-- API Key -->
+    <div class="api-key-section">
+      <label>Claude API Key:</label>
+      <input type="password" id="apiKey" placeholder="sk-ant-..." />
+      <button class="save-btn" onclick="saveApiKey()">保存</button>
+      <span class="api-key-status" id="apiKeyStatus"></span>
+    </div>
+
+    <div class="main-grid">
+      <!-- Input Panel -->
+      <div class="panel">
+        <div class="panel-header">書類アップロード</div>
+        <div class="panel-body">
+
+          <!-- 履歴書 -->
+          <div class="upload-section">
+            <h3>履歴書 <span class="badge">任意</span></h3>
+            <div class="input-toggle">
+              <button class="active" onclick="switchInputMode('rirekisho', 'pdf', this)">PDF</button>
+              <button onclick="switchInputMode('rirekisho', 'text', this)">テキスト</button>
+            </div>
+            <div id="rirekisho-pdf">
+              <div class="drop-zone" id="dropRirekisho" onclick="document.getElementById('fileRirekisho').click()">
+                <div class="icon">📄</div>
+                <p>履歴書PDFをドラッグ＆ドロップ<br>またはクリックして選択</p>
+                <p class="file-name" id="fileNameRirekisho"></p>
+                <input type="file" id="fileRirekisho" accept=".pdf" onchange="handleFileUpload('rirekisho', this.files[0])">
+              </div>
+              <div class="pdf-preview" id="previewRirekisho"></div>
+            </div>
+            <div id="rirekisho-text" style="display:none;">
+              <div class="text-tab">
+                <textarea id="textRirekisho" placeholder="履歴書のテキストを貼り付け..."></textarea>
+              </div>
+            </div>
+          </div>
+
+          <!-- 職務経歴書 -->
+          <div class="upload-section">
+            <h3>職務経歴書 <span class="badge">任意</span></h3>
+            <div class="input-toggle">
+              <button class="active" onclick="switchInputMode('shokumu', 'pdf', this)">PDF</button>
+              <button onclick="switchInputMode('shokumu', 'text', this)">テキスト</button>
+            </div>
+            <div id="shokumu-pdf">
+              <div class="drop-zone" id="dropShokumu" onclick="document.getElementById('fileShokumu').click()">
+                <div class="icon">📋</div>
+                <p>職務経歴書PDFをドラッグ＆ドロップ<br>またはクリックして選択</p>
+                <p class="file-name" id="fileNameShokumu"></p>
+                <input type="file" id="fileShokumu" accept=".pdf" onchange="handleFileUpload('shokumu', this.files[0])">
+              </div>
+              <div class="pdf-preview" id="previewShokumu"></div>
+            </div>
+            <div id="shokumu-text" style="display:none;">
+              <div class="text-tab">
+                <textarea id="textShokumu" placeholder="職務経歴書のテキストを貼り付け..."></textarea>
+              </div>
+            </div>
+          </div>
+
+          <button class="btn-convert" id="btnConvert" onclick="convert()">変換する</button>
+
+          <div class="progress-bar" id="progressBar">
+            <div class="progress-track"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+            <div class="progress-text" id="progressText">処理中...</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Output Panel -->
+      <div class="panel">
+        <div class="panel-header">求職者情報</div>
+        <div class="panel-body">
+          <div id="emptyState" style="text-align:center; padding:60px 20px; color:#9ca3af;">
+            <div style="font-size:48px; margin-bottom:12px;">📝</div>
+            <p>履歴書・職務経歴書をアップロードして<br>「変換する」をクリックしてください</p>
+            <p style="font-size:12px; margin-top:8px;">どちらか片方だけでもOK</p>
+          </div>
+
+          <div class="output-section" id="outputSection">
+            <!-- 基本情報 -->
+            <div class="field-group">
+              <div class="field-group-title">基本情報</div>
+              <div class="field-row">
+                <div class="field-label">氏名</div>
+                <div class="field-value"><input type="text" id="out_name" /></div>
+              </div>
+              <div class="field-row">
+                <div class="field-label">フリガナ</div>
+                <div class="field-value"><input type="text" id="out_nameReading" /></div>
+              </div>
+              <div class="field-row">
+                <div class="field-label">年齢</div>
+                <div class="field-value"><input type="text" id="out_age" /></div>
+              </div>
+              <div class="field-row">
+                <div class="field-label">性別</div>
+                <div class="field-value"><input type="text" id="out_gender" /></div>
+              </div>
+              <div class="field-row">
+                <div class="field-label">就業状況</div>
+                <div class="field-value"><input type="text" id="out_employmentStatus" /></div>
+              </div>
+              <div class="field-row">
+                <div class="field-label">入社希望時期</div>
+                <div class="field-value"><input type="text" id="out_desiredStartDate" /></div>
+              </div>
+            </div>
+
+            <!-- 経歴 -->
+            <div class="field-group">
+              <div class="field-group-title">経歴</div>
+              <div class="field-row">
+                <div class="field-label">最終学歴</div>
+                <div class="field-value"><input type="text" id="out_education" /></div>
+              </div>
+              <div class="field-row">
+                <div class="field-label">卒業学校名</div>
+                <div class="field-value"><input type="text" id="out_school" /></div>
+              </div>
+              <div class="field-row">
+                <div class="field-label">経験社数</div>
+                <div class="field-value"><input type="text" id="out_companyCount" /></div>
+              </div>
+              <div class="field-row">
+                <div class="field-label">経験職種</div>
+                <div class="field-value"><input type="text" id="out_jobTypes" /></div>
+              </div>
+              <div class="field-row">
+                <div class="field-label">経験業種</div>
+                <div class="field-value"><input type="text" id="out_industries" /></div>
+              </div>
+              <div class="field-row">
+                <div class="field-label">マネジメント経験</div>
+                <div class="field-value"><input type="text" id="out_management" /></div>
+              </div>
+              <div class="field-row">
+                <div class="field-label">保有資格</div>
+                <div class="field-value"><input type="text" id="out_qualifications" /></div>
+              </div>
+            </div>
+
+            <!-- 年収 -->
+            <div class="field-group">
+              <div class="field-group-title">年収・希望条件</div>
+              <div class="field-row">
+                <div class="field-label">現在の年収</div>
+                <div class="field-value"><input type="text" id="out_currentSalary" /></div>
+              </div>
+              <div class="field-row">
+                <div class="field-label">希望年収</div>
+                <div class="field-value"><input type="text" id="out_desiredSalary" /></div>
+              </div>
+              <div class="field-row">
+                <div class="field-label">離職日・離職予定日</div>
+                <div class="field-value"><input type="text" id="out_resignDate" /></div>
+              </div>
+              <div class="field-row">
+                <div class="field-label">希望勤務地</div>
+                <div class="field-value"><input type="text" id="out_desiredLocation" /></div>
+              </div>
+            </div>
+
+            <!-- 推薦文 -->
+            <div class="field-group">
+              <div class="field-group-title">推薦文</div>
+              <div class="field-row">
+                <div class="field-label">推薦文</div>
+                <div class="field-value"><textarea id="out_recommendation"></textarea></div>
+              </div>
+            </div>
+
+            <!-- 職歴サマリー -->
+            <div class="field-group">
+              <div class="field-group-title">職歴サマリー</div>
+              <div class="field-row">
+                <div class="field-label">職歴概要</div>
+                <div class="field-value"><textarea id="out_careerSummary" style="min-height:150px;"></textarea></div>
+              </div>
+            </div>
+
+            <div class="btn-group">
+              <button class="btn-action btn-copy" onclick="copyAll()">全てコピー</button>
+              <button class="btn-action btn-copy" onclick="copyRecommendation()">推薦文のみコピー</button>
+              <button class="btn-action btn-reset" onclick="resetAll()">リセット</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ===== Login =====
+const USERS = { 'admin': 'password123', 'staff01': 'staff2024' };
+
+function handleLogin(e) {
+  e.preventDefault();
+  const user = document.getElementById('loginUser').value.trim();
+  const pass = document.getElementById('loginPass').value;
+  if (USERS[user] && USERS[user] === pass) {
+    sessionStorage.setItem('loggedInUser', user);
+    showApp();
+    document.getElementById('loginError').textContent = '';
+  } else {
+    document.getElementById('loginError').textContent = 'ユーザーIDまたはパスワードが正しくありません';
+  }
+}
+
+function handleLogout() {
+  sessionStorage.removeItem('loggedInUser');
+  showLogin();
+}
+
+function showApp() {
+  document.getElementById('loginOverlay').classList.add('hidden');
+  document.getElementById('appWrapper').classList.add('visible');
+}
+
+function showLogin() {
+  document.getElementById('loginOverlay').classList.remove('hidden');
+  document.getElementById('appWrapper').classList.remove('visible');
+  document.getElementById('loginUser').value = '';
+  document.getElementById('loginPass').value = '';
+  document.getElementById('loginError').textContent = '';
+}
+
+// ===== PDF.js =====
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+const extractedTexts = { rirekisho: '', shokumu: '' };
+const inputModes = { rirekisho: 'pdf', shokumu: 'pdf' };
+
+// API Key
+function saveApiKey() {
+  const key = document.getElementById('apiKey').value.trim();
+  if (key) {
+    localStorage.setItem('claude_api_key', key);
+    document.getElementById('apiKeyStatus').textContent = '保存しました';
+    setTimeout(() => document.getElementById('apiKeyStatus').textContent = '', 2000);
+  }
+}
+
+// Init
+window.addEventListener('DOMContentLoaded', () => {
+  if (sessionStorage.getItem('loggedInUser')) showApp();
+  const saved = localStorage.getItem('claude_api_key');
+  if (saved) {
+    document.getElementById('apiKey').value = saved;
+    document.getElementById('apiKeyStatus').textContent = '保存済み';
+  }
+  setupDropZone('dropRirekisho', 'fileRirekisho', 'rirekisho');
+  setupDropZone('dropShokumu', 'fileShokumu', 'shokumu');
+});
+
+function switchInputMode(docType, mode, btn) {
+  inputModes[docType] = mode;
+  const toggle = btn.parentElement;
+  toggle.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById(`${docType}-pdf`).style.display = mode === 'pdf' ? 'block' : 'none';
+  document.getElementById(`${docType}-text`).style.display = mode === 'text' ? 'block' : 'none';
+}
+
+function setupDropZone(zoneId, fileInputId, docType) {
+  const zone = document.getElementById(zoneId);
+  zone.addEventListener('dragover', (e) => { e.preventDefault(); zone.classList.add('dragover'); });
+  zone.addEventListener('dragleave', () => zone.classList.remove('dragover'));
+  zone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    zone.classList.remove('dragover');
+    if (e.dataTransfer.files.length) {
+      document.getElementById(fileInputId).files = e.dataTransfer.files;
+      handleFileUpload(docType, e.dataTransfer.files[0]);
+    }
+  });
+}
+
+async function handleFileUpload(docType, file) {
+  if (!file || file.type !== 'application/pdf') {
+    showToast('PDFファイルを選択してください');
+    return;
+  }
+
+  const nameEl = document.getElementById(docType === 'rirekisho' ? 'fileNameRirekisho' : 'fileNameShokumu');
+  const dropZone = document.getElementById(docType === 'rirekisho' ? 'dropRirekisho' : 'dropShokumu');
+  const previewEl = document.getElementById(docType === 'rirekisho' ? 'previewRirekisho' : 'previewShokumu');
+
+  nameEl.textContent = file.name;
+  dropZone.classList.add('has-file');
+
+  const arrayBuffer = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+  let text = '';
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const page = await pdf.getPage(i);
+    const content = await page.getTextContent();
+    text += content.items.map(item => item.str).join(' ') + '\n';
+  }
+  extractedTexts[docType] = text;
+
+  previewEl.style.display = 'block';
+  previewEl.textContent = text.substring(0, 300) + (text.length > 300 ? '...' : '');
+}
+
+function getInputText(docType) {
+  if (inputModes[docType] === 'pdf') {
+    return extractedTexts[docType];
+  }
+  const textareaId = docType === 'rirekisho' ? 'textRirekisho' : 'textShokumu';
+  return document.getElementById(textareaId).value.trim();
+}
+
+// Progress
+function setProgress(pct, text) {
+  document.getElementById('progressBar').classList.add('active');
+  document.getElementById('progressFill').style.width = pct + '%';
+  document.getElementById('progressText').textContent = text;
+}
+
+function hideProgress() {
+  document.getElementById('progressBar').classList.remove('active');
+}
+
+// Main conversion
+async function convert() {
+  const apiKey = document.getElementById('apiKey').value.trim();
+  if (!apiKey) { showToast('APIキーを入力してください'); return; }
+
+  const rirekishoText = getInputText('rirekisho');
+  const shokumuText = getInputText('shokumu');
+
+  if (!rirekishoText && !shokumuText) {
+    showToast('履歴書または職務経歴書を入力してください');
+    return;
+  }
+
+  const btn = document.getElementById('btnConvert');
+  btn.disabled = true;
+  btn.textContent = '変換中...';
+
+  try {
+    setProgress(20, '情報を抽出中...');
+    const combinedText = buildCombinedInput(rirekishoText, shokumuText);
+    const extracted = await callClaude(apiKey, buildExtractionPrompt(combinedText));
+
+    setProgress(55, '推薦文を生成中...');
+    const recommendation = await callClaude(apiKey, buildRecommendationPrompt(combinedText, extracted));
+
+    setProgress(80, '職歴サマリーを生成中...');
+    const summary = await callClaude(apiKey, buildSummaryPrompt(combinedText));
+
+    setProgress(100, '完了');
+    displayResults(extracted, recommendation, summary);
+    setTimeout(hideProgress, 1000);
+  } catch (err) {
+    showToast('エラー: ' + err.message);
+    hideProgress();
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '変換する';
+  }
+}
+
+function buildCombinedInput(rirekisho, shokumu) {
+  let text = '';
+  if (rirekisho) text += '【履歴書】\n' + rirekisho + '\n\n';
+  if (shokumu) text += '【職務経歴書】\n' + shokumu + '\n';
+  return text;
+}
+
+function buildExtractionPrompt(text) {
+  return `あなたは人材紹介会社の求職者情報を整理する専門家です。
+以下の履歴書・職務経歴書のテキストから情報を抽出し、JSON形式で返してください。
+
+【出力JSON形式】必ずこのキーで返してください。不明な項目は空文字""にしてください。
+{
+  "name": "氏名",
+  "nameReading": "氏名の読み仮名（カタカナ）",
+  "age": "年齢（例: 35歳）",
+  "gender": "性別",
+  "employmentStatus": "就業状況（就業中/離職中）",
+  "desiredStartDate": "入社希望時期",
+  "education": "最終学歴（中卒/高卒/専門卒/短大卒/大卒/大学院卒）",
+  "school": "卒業学校名・学部学科",
+  "companyCount": "経験社数（例: 3社）",
+  "jobTypes": "経験職種と年数（例: 営業事務：5年以上 (直近で経験)）",
+  "industries": "経験業種（例: IT・通信、メーカー）",
+  "management": "マネジメント経験の有無と詳細",
+  "qualifications": "保有資格（例: 日商簿記2級、TOEIC 800点）",
+  "currentSalary": "現在の年収（例: 420万円）",
+  "resignDate": "離職日・離職予定日",
+  "desiredSalary": "希望年収（例: 450万円以上）",
+  "desiredLocation": "希望勤務地"
+}
+
+【入力テキスト】
+${text}
+
+必ず有効なJSONのみを返してください。説明文は不要です。`;
+}
+
+function buildRecommendationPrompt(text, extractedJson) {
+  let parsed;
+  try { parsed = JSON.parse(extractedJson.replace(/```(?:json)?\s*([\s\S]*?)```/, '$1').trim()); } catch { parsed = {}; }
+
+  return `あなたは人材紹介会社のキャリアアドバイザーです。
+以下の求職者の履歴書・職務経歴書の情報をもとに、推薦文を作成してください。
+
+【推薦文のフォーマット】以下の構成で記述してください：
+1. 冒頭に求職者の基本情報を記載:
+【氏名】${parsed.name || ''}様（${parsed.nameReading || ''}）${parsed.age || ''}、${parsed.gender || ''}
+【就業状況】${parsed.employmentStatus || ''}
+【入社希望時期】${parsed.desiredStartDate || ''}
+【現年収】${parsed.currentSalary || ''}
+【希望年収】${parsed.desiredSalary || ''}
+
+2. 経歴の概要（業界・職種・年数）
+
+3. 具体的な業務内容と実績（数字を交えて具体的に）
+
+4. 特に評価できるスキル・能力（2〜3点）
+
+5. 締めの推薦コメント
+
+【文体の注意】
+- 「です・ます」調で統一
+- 具体的な数字や事実を盛り込む
+- 候補者の強みが伝わるよう、具体的なエピソードを含める
+- 800〜1500文字程度
+
+【求職者の情報】
+${text}
+
+推薦文のみを返してください。`;
+}
+
+function buildSummaryPrompt(text) {
+  return `あなたは人材紹介会社のキャリアアドバイザーです。
+以下の履歴書・職務経歴書から、職歴サマリーを作成してください。
+
+【フォーマット】
+各社ごとに以下の形式で簡潔にまとめてください：
+■ 会社名（在籍期間）
+  業種：〇〇 / 従業員数：〇〇名
+  職種：〇〇
+  業務内容：箇条書きで主な業務を記載
+  実績：具体的な数字があれば記載
+
+【注意】
+- 時系列（古い順）で記載
+- 各社3〜5行程度に要約
+- 転職理由が読み取れる場合は記載
+
+【入力テキスト】
+${text}
+
+職歴サマリーのみを返してください。`;
+}
+
+async function callClaude(apiKey, prompt) {
+  const response = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true'
+    },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 4096,
+      messages: [{ role: 'user', content: prompt }]
+    })
+  });
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error?.message || `API error: ${response.status}`);
+  }
+
+  const data = await response.json();
+  return data.content[0].text;
+}
+
+function displayResults(extractedJson, recommendation, summary) {
+  let parsed;
+  try {
+    let jsonStr = extractedJson;
+    const match = extractedJson.match(/```(?:json)?\s*([\s\S]*?)```/);
+    if (match) jsonStr = match[1];
+    parsed = JSON.parse(jsonStr.trim());
+  } catch (e) {
+    showToast('JSON解析に失敗しました。再試行してください。');
+    console.error('Parse error:', e, extractedJson);
+    return;
+  }
+
+  const fields = ['name','nameReading','age','gender','employmentStatus','desiredStartDate',
+    'education','school','companyCount','jobTypes','industries','management','qualifications',
+    'currentSalary','desiredSalary','resignDate','desiredLocation'];
+
+  fields.forEach(key => {
+    const el = document.getElementById('out_' + key);
+    if (el) el.value = parsed[key] || '';
+  });
+
+  document.getElementById('out_recommendation').value = recommendation;
+  document.getElementById('out_careerSummary').value = summary;
+
+  document.getElementById('emptyState').style.display = 'none';
+  document.getElementById('outputSection').classList.add('active');
+}
+
+function copyAll() {
+  const basicFields = [
+    ['氏名', 'out_name'], ['フリガナ', 'out_nameReading'], ['年齢', 'out_age'],
+    ['性別', 'out_gender'], ['就業状況', 'out_employmentStatus'], ['入社希望時期', 'out_desiredStartDate']
+  ];
+  const careerFields = [
+    ['最終学歴', 'out_education'], ['卒業学校名', 'out_school'], ['経験社数', 'out_companyCount'],
+    ['経験職種', 'out_jobTypes'], ['経験業種', 'out_industries'], ['マネジメント経験', 'out_management'],
+    ['保有資格', 'out_qualifications']
+  ];
+  const conditionFields = [
+    ['現在の年収', 'out_currentSalary'], ['希望年収', 'out_desiredSalary'],
+    ['離職日・離職予定日', 'out_resignDate'], ['希望勤務地', 'out_desiredLocation']
+  ];
+
+  let text = '【基本情報】\n';
+  basicFields.forEach(([label, id]) => { text += `${label}\t${document.getElementById(id).value}\n`; });
+  text += '\n【経歴】\n';
+  careerFields.forEach(([label, id]) => { text += `${label}\t${document.getElementById(id).value}\n`; });
+  text += '\n【年収・希望条件】\n';
+  conditionFields.forEach(([label, id]) => { text += `${label}\t${document.getElementById(id).value}\n`; });
+  text += '\n【推薦文】\n' + document.getElementById('out_recommendation').value;
+  text += '\n\n【職歴サマリー】\n' + document.getElementById('out_careerSummary').value;
+
+  navigator.clipboard.writeText(text).then(() => showToast('全てコピーしました'));
+}
+
+function copyRecommendation() {
+  const text = document.getElementById('out_recommendation').value;
+  navigator.clipboard.writeText(text).then(() => showToast('推薦文をコピーしました'));
+}
+
+function resetAll() {
+  document.querySelectorAll('.output-section input, .output-section textarea').forEach(el => el.value = '');
+  document.getElementById('outputSection').classList.remove('active');
+  document.getElementById('emptyState').style.display = 'block';
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+</script>
+</body>
+</html>
